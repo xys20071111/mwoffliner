@@ -186,8 +186,8 @@ async function execute(argv: any) {
 
   const addNamespaces = _addNamespaces
     ? String(_addNamespaces)
-        .split(',')
-        .map((a: string) => Number(a))
+      .split(',')
+      .map((a: string) => Number(a))
     : []
 
   /* Get MediaWiki Info */
@@ -455,7 +455,7 @@ async function execute(argv: any) {
       }),
     )
 
-    await downloadFiles(filesToDownloadXPath, zimCreator, dump)
+    await downloadFiles(filesToDownloadXPath, zimCreator, dump, argv.ignoreDownloadFailed)
 
     logger.log('Writing Article Redirects')
     await writeArticleRedirects(dump, zimCreator)
@@ -587,18 +587,18 @@ async function execute(argv: any) {
         .replace(
           '</head>',
           genHeaderCSSLink(config, 'mobile_main_page', dump.mwMetaData.mainPage, config.output.dirs.res) +
-            '\n' +
-            genHeaderCSSLink(config, 'style', dump.mwMetaData.mainPage, config.output.dirs.res) +
-            '\n' +
-            genHeaderScript(config, 'images_loaded.min', dump.mwMetaData.mainPage, config.output.dirs.res) +
-            '\n' +
-            genHeaderScript(config, 'masonry.min', dump.mwMetaData.mainPage, config.output.dirs.res) +
-            '\n' +
-            genHeaderScript(config, 'article_list_home', dump.mwMetaData.mainPage, config.output.dirs.res) +
-            '\n' +
-            genCanonicalLink(config, dump.mwMetaData.webUrl, dump.mwMetaData.mainPage) +
-            '\n' +
-            '\n</head>',
+          '\n' +
+          genHeaderCSSLink(config, 'style', dump.mwMetaData.mainPage, config.output.dirs.res) +
+          '\n' +
+          genHeaderScript(config, 'images_loaded.min', dump.mwMetaData.mainPage, config.output.dirs.res) +
+          '\n' +
+          genHeaderScript(config, 'masonry.min', dump.mwMetaData.mainPage, config.output.dirs.res) +
+          '\n' +
+          genHeaderScript(config, 'article_list_home', dump.mwMetaData.mainPage, config.output.dirs.res) +
+          '\n' +
+          genCanonicalLink(config, dump.mwMetaData.webUrl, dump.mwMetaData.mainPage) +
+          '\n' +
+          '\n</head>',
         )
         .replace(/__ASSETS_DIR__/g, config.output.dirs.assets)
         .replace(/__RES_DIR__/g, config.output.dirs.res)

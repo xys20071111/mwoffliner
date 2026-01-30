@@ -19,7 +19,7 @@ import { truncateUtf8Bytes } from './misc.js'
 import { isMainPage } from './articles.js'
 import RedisQueue from './RedisQueue.js'
 
-export async function downloadFiles(fileStore: RKVS<FileDetail>, zimCreator: Creator, dump: Dump) {
+export async function downloadFiles(fileStore: RKVS<FileDetail>, zimCreator: Creator, dump: Dump, ignoreFailed: boolean) {
   interface HostData {
     filesToDownload: RedisQueue<FileToDownload>
     lastRequestDate?: number
@@ -115,8 +115,9 @@ export async function downloadFiles(fileStore: RKVS<FileDetail>, zimCreator: Cre
    * @param hostname hostname to process
    * @param hostData data about the host to process
    * @param workerId ID of worker currently processing this download
+   * @param ignoreFailed Ignore error: too many files failed to download 
    */
-  async function workerDownloadFile(fileToDownload: FileToDownload, hostname: string, hostData: HostData, workerId: number) {
+  async function workerDownloadFile(fileToDownload: FileToDownload, hostname: string, hostData: HostData, workerId: number, ignoreFailed: boolean) {
     if ((dump.status.files.success + dump.status.files.fail) % (10 * Downloader.speed) === 0) {
       const percentProgress = (((dump.status.files.success + dump.status.files.fail) / filesTotal) * 100).toFixed(1)
       if (percentProgress !== prevPercentProgress) {
@@ -124,7 +125,12 @@ export async function downloadFiles(fileStore: RKVS<FileDetail>, zimCreator: Cre
         logger.log(`Progress downloading files [${dump.status.files.success + dump.status.files.fail}/${filesTotal}] [${percentProgress}%]`)
       }
       if (dump.status.files.fail > FILES_DOWNLOAD_FAILURE_MINIMUM_FOR_CHECK && (dump.status.files.fail * 10000) / filesTotal > FILES_DOWNLOAD_FAILURE_TRESHOLD_PER_TEN_THOUSAND) {
-        throw new Error(`Too many files failed to download: [${dump.status.files.fail}/${filesTotal}]`)
+        const msg = `Too many files failed to download: [${dump.status.files.fail}/${filesTotal}]`
+        if (ignoreFailed) {
+          console.warn(msg)
+        } else {
+          throw new Error(msg)
+        }
       }
     }
 
@@ -185,7 +191,7 @@ export async function downloadFiles(fileStore: RKVS<FileDetail>, zimCreator: Cre
         const nextFileData = await fileDownloadMutex.runExclusive(getNextFileToDownload)
         if (!nextFileData) break
         const { fileToDownload, hostname, hostData } = nextFileData
-        await workerDownloadFile(fileToDownload, hostname, hostData, workerId)
+        await workerDownloadFile(fileToDownload, hostname, hostData, workerId, ignoreFailed)
       }
     },
     { concurrency: Downloader.speed },
@@ -457,8 +463,7 @@ export async function saveArticles(zimCreator: Creator, dump: Dump) {
           if (percentProgress !== prevPercentProgress) {
             prevPercentProgress = percentProgress
             logger.log(
-              `Progress downloading articles [${
-                dump.status.articles.success + dump.status.articles.hardFail + dump.status.articles.softFail
+              `Progress downloading articles [${dump.status.articles.success + dump.status.articles.hardFail + dump.status.articles.softFail
               }/${articlesTotal}] [${percentProgress}%]`,
             )
           }
